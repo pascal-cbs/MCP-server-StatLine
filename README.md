@@ -1,90 +1,95 @@
 # statline-mcp
 
-MCP-server voor de [CBS StatLine OData API](https://opendata.cbs.nl). De volledige tabellencatalogus
-(~6000 tabellen) wordt lokaal gecachet in SQLite (FTS5) en is doorzoekbaar; vervolgens kan een
-MCP-gebruiker door een tabel navigeren en de cijfers opvragen.
+🇳🇱 [Nederlandse versie](README-nl.md)
+
+MCP server for the [CBS StatLine OData API](https://opendata.cbs.nl) (Statistics Netherlands). The full
+table catalog (~6,000 tables) is cached locally in SQLite (FTS5) and is searchable; an MCP user can then
+navigate through a table and retrieve the figures.
 
 ## Tools
 
-| Tool | Doel |
+| Tool | Purpose |
 |---|---|
-| `search_tables` | Zoek in de catalogus op titel/omschrijving (voorvoegsel-matching, nl/en, actuele tabellen standaard) |
-| `get_table_info` | Beschrijving, periode, status en dimensies van een tabel |
-| `get_table_measures` | Meetwaarden (kolommen) met eenheid en onderwerpgroep, doorzoekbaar |
-| `list_dimension_values` | Geldige waarden van een dimensie (regio's, perioden, categorieën), doorzoekbaar |
-| `query_data` | Cijfers ophalen met filters, paginering en labels |
-| `refresh_catalog` | Cachestatus bekijken / catalogus verversen (automatisch na 24 uur) |
+| `search_tables` | Search the catalog by title/description (prefix matching, nl/en, current tables by default) |
+| `get_table_info` | Description, period, status and dimensions of a table |
+| `get_table_measures` | Measures (columns) with unit and topic group, searchable |
+| `list_dimension_values` | Valid values of a dimension (regions, periods, categories), searchable |
+| `query_data` | Retrieve figures with filters, pagination and labels |
+| `refresh_catalog` | Show cache status / refresh the catalog (automatically after 24 hours) |
 
-Typische flow: `search_tables("werkloosheid")` → `get_table_info("85224NED")` →
+Typical flow: `search_tables("werkloosheid")` → `get_table_info("85224NED")` →
 `list_dimension_values(..., "Perioden")` → `query_data(..., filters={"Perioden": "laatste:4kw"})`.
+
+> Note: most CBS tables are in Dutch. English versions exist for part of the catalog (table IDs ending
+> in `ENG`); use `language="en"` in `search_tables` to restrict results to those.
 
 ### Filters in `query_data`
 
-Per dimensie kun je opgeven:
+For each dimension you can pass:
 
-| Invoer | Betekenis |
+| Input | Meaning |
 |---|---|
-| `"GM0363"` | een sleutel |
-| `"Amsterdam"` | een titel (hoofdletterongevoelig) |
-| `"2023*"` | alle waarden die met `2023` beginnen |
-| `"laatste"`, `"laatste:5"` | de meest recente 1 resp. 5 waarden |
-| `"laatste:4kw"`, `"laatste:3jaar"`, `"laatste:12maand"` | idem, maar alleen kwartalen / jaren / maanden (nuttig bij gemengde perioden) |
+| `"GM0363"` | a key |
+| `"Amsterdam"` | a title (case-insensitive) |
+| `"2023*"` | all values starting with `2023` |
+| `"laatste"`, `"laatste:5"` | the most recent 1 or 5 values ("laatste" = latest) |
+| `"laatste:4kw"`, `"laatste:3jaar"`, `"laatste:12maand"` | same, but counting only quarters / years / months (useful for mixed periods) |
 
-Meerdere waarden in een lijst worden met OF gecombineerd, verschillende dimensies met EN.
+Multiple values in a list are combined with OR, different dimensions with AND.
 
-## Installatie
+## Installation
 
-Je hebt [uv](https://docs.astral.sh/uv/getting-started/installation/) nodig. uv haalt zo nodig zelf
-een geschikte Python (≥ 3.10) op.
+You need [uv](https://docs.astral.sh/uv/getting-started/installation/). uv fetches a suitable Python
+(≥ 3.10) itself if needed.
 
-### Optie 1: direct vanaf GitHub (geen clone nodig)
+### Option 1: straight from GitHub (no clone needed)
 
 ```bash
 uvx --from git+https://github.com/pascal-cbs/MCP-server-StatLine statline-mcp
 ```
 
-Dit start de server over stdio. Normaal gesproken draai je dit niet zelf, maar laat je een
-MCP-client het commando starten (zie hieronder).
+This starts the server over stdio. You normally won't run this yourself; instead, let an MCP client
+launch the command (see below).
 
-### Optie 2: lokaal klonen
+### Option 2: clone locally
 
 ```bash
 git clone https://github.com/pascal-cbs/MCP-server-StatLine.git
 cd MCP-server-StatLine
 uv sync
-uv run statline-mcp   # start de server over stdio
+uv run statline-mcp   # starts the server over stdio
 ```
 
-## Toevoegen aan Claude Code
+## Adding to Claude Code
 
-Met optie 1 (vanaf GitHub):
+With option 1 (from GitHub):
 
 ```bash
 claude mcp add statline -- uvx --from git+https://github.com/pascal-cbs/MCP-server-StatLine statline-mcp
 ```
 
-Met optie 2 (lokale kopie):
+With option 2 (local copy):
 
 ```bash
-claude mcp add statline -- uv --directory /pad/naar/MCP-server-StatLine run statline-mcp
+claude mcp add statline -- uv --directory /path/to/MCP-server-StatLine run statline-mcp
 ```
 
-Standaard geldt de server alleen voor het huidige project. Beschikbaar maken in al je projecten:
+By default the server applies to the current project only. To make it available in all your projects:
 
 ```bash
 claude mcp add --scope user statline -- uvx --from git+https://github.com/pascal-cbs/MCP-server-StatLine statline-mcp
 ```
 
-Controleer daarna met `claude mcp list` of de server verbonden is, of typ `/mcp` in Claude Code.
-Start eventueel een nieuwe sessie. Probeer het dan met bijvoorbeeld:
+Then check with `claude mcp list` that the server is connected, or type `/mcp` in Claude Code.
+Start a new session if needed, then try for example:
 
-> Zoek een CBS-tabel over werkloosheid en geef de laatste vier kwartaalcijfers.
+> Find a CBS table about unemployment and give me the last four quarterly figures.
 
-Verwijderen kan met `claude mcp remove statline`.
+Remove it with `claude mcp remove statline`.
 
-## Toevoegen aan andere MCP-clients
+## Adding to other MCP clients
 
-Voor Claude Desktop en andere clients met een JSON-configuratie (voor Claude Desktop:
+For Claude Desktop and other clients with a JSON configuration (for Claude Desktop:
 `claude_desktop_config.json`):
 
 ```json
@@ -98,20 +103,20 @@ Voor Claude Desktop en andere clients met een JSON-configuratie (voor Claude Des
 }
 ```
 
-Gebruik bij een lokale kopie `"command": "uv"` met
-`"args": ["--directory", "/pad/naar/MCP-server-StatLine", "run", "statline-mcp"]`.
-Als de client `uv`/`uvx` niet vindt, geef dan het volledige pad op (`which uvx`).
+For a local copy use `"command": "uv"` with
+`"args": ["--directory", "/path/to/MCP-server-StatLine", "run", "statline-mcp"]`.
+If the client cannot find `uv`/`uvx`, give the full path (`which uvx`).
 
-## Configuratie (omgevingsvariabelen)
+## Configuration (environment variables)
 
-- `STATLINE_CACHE_DIR` – cachemap (standaard `~/.cache/statline-mcp`)
-- `STATLINE_CATALOG_MAX_AGE_HOURS` – maximale cacheleeftijd van de catalogus (standaard 24)
+- `STATLINE_CACHE_DIR` – cache directory (default `~/.cache/statline-mcp`)
+- `STATLINE_CATALOG_MAX_AGE_HOURS` – maximum age of the catalog cache (default 24)
 
-De eerste zoekactie haalt de catalogus op bij het CBS (een paar seconden); daarna draait zoeken lokaal.
+The first search fetches the catalog from CBS (a few seconds); after that, searching runs locally.
 
-## Opmerkingen
+## Notes
 
-- Data komt uit `TypedDataSet`; paginering met `offset` gebruikt automatisch de `ODataFeed`-endpoint
-  omdat `ODataApi` geen `$skip` ondersteunt.
-- CBS-sleutels zijn soms met spaties aangevuld (`'GM0363    '`); de server regelt dit en geeft getrimde waarden terug.
-- CBS geeft geen totaal aantal rijen terug; gebruik `next_offset` om verder te pagineren.
+- Data comes from `TypedDataSet`; pagination with `offset` automatically uses the `ODataFeed` endpoint
+  because `ODataApi` does not support `$skip`.
+- CBS keys are sometimes padded with spaces (`'GM0363    '`); the server handles this and returns trimmed values.
+- CBS does not return a total row count; use `next_offset` to keep paginating.
